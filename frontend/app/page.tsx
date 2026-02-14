@@ -45,6 +45,7 @@ function PollPage() {
   const [hasVoted, setHasVoted] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
   const [votingOptionId, setVotingOptionId] = useState<string | null>(null);
+  const [pingStatus, setPingStatus] = useState<"idle" | "loading" | "ok" | "error">("idle");
 
   useEffect(() => {
     setPollId(pollIdFromUrl);
@@ -171,8 +172,34 @@ function PollPage() {
     }
   };
 
+  const pingBackend = async () => {
+    setPingStatus("loading");
+    try {
+      const response = await fetch(`${API_BASE}/`, {
+        cache: "no-store",
+      });
+      if (!response.ok) {
+        setPingStatus("error");
+        return;
+      }
+      setPingStatus("ok");
+    } catch {
+      setPingStatus("error");
+    }
+  };
+
   return (
     <main className="page">
+      <section className="card">
+        <h2>Backend Status</h2>
+        <p>Our backend is on free tier so kindly ping before use.</p>
+        <button type="button" className="secondary" onClick={() => void pingBackend()} disabled={pingStatus === "loading"}>
+          {pingStatus === "loading" ? "Pinging..." : "Ping Backend"}
+        </button>
+        {pingStatus === "ok" && <p className="message">Backend is awake and reachable.</p>}
+        {pingStatus === "error" && <p className="message">Backend not reachable right now. Try ping again.</p>}
+      </section>
+
       <section className="card">
         <h1>Simple Live Poll</h1>
         <p>Create a poll or open one by share link.</p>
