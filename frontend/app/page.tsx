@@ -17,7 +17,7 @@ type Poll = {
   options: PollOption[];
 };
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+const API_BASE = process.env.BACKEND ?? "http://localhost:8000";
 
 function pollLink(pollId: string) {
   if (typeof window === "undefined") return `/?poll=${pollId}`;
