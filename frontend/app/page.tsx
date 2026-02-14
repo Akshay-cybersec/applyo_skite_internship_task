@@ -43,6 +43,8 @@ function PollPage() {
   const [shareLink, setShareLink] = useState("");
   const [message, setMessage] = useState("");
   const [hasVoted, setHasVoted] = useState(false);
+  const [isCreating, setIsCreating] = useState(false);
+  const [votingOptionId, setVotingOptionId] = useState<string | null>(null);
 
   useEffect(() => {
     setPollId(pollIdFromUrl);
@@ -107,6 +109,7 @@ function PollPage() {
       return;
     }
 
+    setIsCreating(true);
     try {
       const response = await fetch(`${API_BASE}/polls`, {
         method: "POST",
@@ -131,12 +134,15 @@ function PollPage() {
       setMessage("Poll created. Share the link below.");
     } catch {
       setMessage("Backend not reachable. Start API and try again.");
+    } finally {
+      setIsCreating(false);
     }
   };
 
   const vote = async (optionId: string) => {
     if (!pollId || !poll) return;
 
+    setVotingOptionId(optionId);
     try {
       const response = await fetch(`${API_BASE}/polls/${pollId}/vote`, {
         method: "POST",
@@ -160,6 +166,8 @@ function PollPage() {
       setMessage("Vote submitted.");
     } catch {
       setMessage("Backend not reachable. Start API and try again.");
+    } finally {
+      setVotingOptionId(null);
     }
   };
 
@@ -211,7 +219,9 @@ function PollPage() {
             </button>
           </div>
 
-          <button type="submit">Create Poll</button>
+          <button type="submit" disabled={isCreating}>
+            {isCreating ? "Creating..." : "Create Poll"}
+          </button>
         </form>
 
         {shareLink && (
@@ -238,8 +248,12 @@ function PollPage() {
                 const percent = totalVotes === 0 ? 0 : Math.round((option.votes / totalVotes) * 100);
                 return (
                   <li key={option.id}>
-                    <button type="button" disabled={hasVoted} onClick={() => void vote(option.id)}>
-                      Vote
+                    <button
+                      type="button"
+                      disabled={hasVoted || votingOptionId !== null}
+                      onClick={() => void vote(option.id)}
+                    >
+                      {votingOptionId === option.id ? "Voting..." : "Vote"}
                     </button>
                     <span>{option.text}</span>
                     <span>

@@ -21,7 +21,7 @@ IP_HASH_SALT = os.getenv("IP_HASH_SALT", "change-me-in-production")
 RATE_LIMIT_WINDOW_SECONDS = int(os.getenv("RATE_LIMIT_WINDOW_SECONDS", "60"))
 RATE_LIMIT_MAX_ATTEMPTS = int(os.getenv("RATE_LIMIT_MAX_ATTEMPTS", "15"))
 
-origins = os.getenv("CORS_ORIGINS", "http://localhost:3000,http://127.0.0.1:3000")
+origins = os.getenv("CORS_ORIGINS", "http://localhost:3000,http://127.0.0.1:3000,https://applyo-skite-internship-task.vercel.app")
 allow_origins = [item.strip() for item in origins.split(",") if item.strip()]
 
 app = FastAPI(title="Simple Poll API", version="1.1.0")
