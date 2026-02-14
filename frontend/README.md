@@ -1,6 +1,6 @@
 # Simple Live Poll Frontend
 
-This is a basic frontend prototype for poll creation, sharing, voting, and live result updates.
+Next.js app for creating, sharing, and voting on polls.
 
 ## Run
 
@@ -11,21 +11,19 @@ npm run dev
 
 Open `http://localhost:3000`.
 
-## What It Supports
+## Backend URL
 
-- Create a poll with a question and 2+ options
-- Get a shareable link like `/?poll=<id>`
-- Open poll by link and vote once
-- See results update live across browser tabs
-- Persist polls/votes in browser storage
+Set API base URL (optional; defaults to `http://localhost:8000`):
 
-## Fairness Controls in This Frontend Prototype
+```bash
+# PowerShell
+$env:NEXT_PUBLIC_API_URL="http://localhost:8000"
+```
 
-- One vote per poll per browser (stored in localStorage)
-- One vote per poll per browser session (stored in sessionStorage)
+## Features
 
-## Limitations
-
-- Data is stored in browser localStorage (not server/database)
-- Live updates work across tabs on the same browser/device
-- Not secure against advanced abuse (e.g., clearing storage or changing browser/device)
+- Create poll with question and 2+ options
+- Delete mistakenly added options while composing
+- Generate share link (`/?poll=<id>`)
+- Join poll by link and vote single-choice
+- Real-time result refresh via Server-Sent Events (SSE)

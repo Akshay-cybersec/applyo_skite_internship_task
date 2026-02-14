@@ -12,59 +12,16 @@ type PollOption = {
 type Poll = {
   id: string;
   question: string;
+  total_votes: number;
+  version: number;
   options: PollOption[];
 };
 
-const POLLS_KEY = "simple-polls";
-const VOTED_KEY = "voted-polls";
-const SESSION_VOTED_KEY = "session-voted-polls";
-
-function readPolls(): Record<string, Poll> {
-  try {
-    const raw = localStorage.getItem(POLLS_KEY);
-    return raw ? (JSON.parse(raw) as Record<string, Poll>) : {};
-  } catch {
-    return {};
-  }
-}
-
-function writePolls(polls: Record<string, Poll>) {
-  localStorage.setItem(POLLS_KEY, JSON.stringify(polls));
-}
-
-function readVoted(): Record<string, string> {
-  try {
-    const raw = localStorage.getItem(VOTED_KEY);
-    return raw ? (JSON.parse(raw) as Record<string, string>) : {};
-  } catch {
-    return {};
-  }
-}
-
-function writeVoted(voted: Record<string, string>) {
-  localStorage.setItem(VOTED_KEY, JSON.stringify(voted));
-}
-
-function readSessionVoted(): Record<string, string> {
-  try {
-    const raw = sessionStorage.getItem(SESSION_VOTED_KEY);
-    return raw ? (JSON.parse(raw) as Record<string, string>) : {};
-  } catch {
-    return {};
-  }
-}
-
-function writeSessionVoted(voted: Record<string, string>) {
-  sessionStorage.setItem(SESSION_VOTED_KEY, JSON.stringify(voted));
-}
+const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
 function pollLink(pollId: string) {
   if (typeof window === "undefined") return `/?poll=${pollId}`;
   return `${window.location.origin}/?poll=${pollId}`;
-}
-
-function uid() {
-  return Math.random().toString(36).slice(2, 10);
 }
 
 export default function Home() {
@@ -77,46 +34,58 @@ export default function Home() {
   const [poll, setPoll] = useState<Poll | null>(null);
   const [shareLink, setShareLink] = useState("");
   const [message, setMessage] = useState("");
+  const [hasVoted, setHasVoted] = useState(false);
 
   useEffect(() => {
     setPollId(pollIdFromUrl);
   }, [pollIdFromUrl]);
 
   useEffect(() => {
-    const load = () => {
+    const load = async () => {
       if (!pollId) {
         setPoll(null);
+        setHasVoted(false);
         return;
       }
-      const polls = readPolls();
-      setPoll(polls[pollId] ?? null);
+
+      try {
+        const response = await fetch(`${API_BASE}/polls/${pollId}`, {
+          credentials: "include",
+          cache: "no-store",
+        });
+
+        if (!response.ok) {
+          setPoll(null);
+          return;
+        }
+
+        const data = (await response.json()) as Poll;
+        setPoll(data);
+      } catch {
+        setPoll(null);
+      }
     };
 
-    load();
+    void load();
 
-    const channel = new BroadcastChannel("poll-live-updates");
-    const onStorage = (event: StorageEvent) => {
-      if (event.key === POLLS_KEY) load();
+    if (!pollId) return;
+    const events = new EventSource(`${API_BASE}/polls/${pollId}/events`, {
+      withCredentials: true,
+    });
+    events.onmessage = () => {
+      void load();
     };
-    channel.onmessage = load;
-    window.addEventListener("storage", onStorage);
 
     return () => {
-      channel.close();
-      window.removeEventListener("storage", onStorage);
+      events.close();
     };
-  }, [pollId]);
-
-  const hasVoted = useMemo(() => {
-    if (!pollId) return false;
-    return Boolean(readVoted()[pollId] || readSessionVoted()[pollId]);
   }, [pollId]);
 
   const totalVotes = useMemo(() => {
-    return poll ? poll.options.reduce((sum, option) => sum + option.votes, 0) : 0;
+    return poll ? poll.total_votes : 0;
   }, [poll]);
 
-  const createPoll = (e: React.FormEvent) => {
+  const createPoll = async (e: React.FormEvent) => {
     e.preventDefault();
     const cleanQuestion = question.trim();
     const cleanOptions = options.map((opt) => opt.trim()).filter(Boolean);
@@ -130,60 +99,60 @@ export default function Home() {
       return;
     }
 
-    const newPollId = uid();
-    const newPoll: Poll = {
-      id: newPollId,
-      question: cleanQuestion,
-      options: cleanOptions.map((text) => ({ id: uid(), text, votes: 0 })),
-    };
+    try {
+      const response = await fetch(`${API_BASE}/polls`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ question: cleanQuestion, options: cleanOptions }),
+      });
 
-    const polls = readPolls();
-    polls[newPollId] = newPoll;
-    writePolls(polls);
+      if (!response.ok) {
+        const err = (await response.json().catch(() => ({}))) as { detail?: string };
+        setMessage(err.detail ?? "Failed to create poll.");
+        return;
+      }
 
-    const channel = new BroadcastChannel("poll-live-updates");
-    channel.postMessage({ type: "poll-created", pollId: newPollId });
-    channel.close();
-
-    const link = pollLink(newPollId);
-    setShareLink(link);
-    setMessage("Poll created. Share the link below.");
+      const data = (await response.json()) as Poll;
+      setPoll(data);
+      setPollId(data.id);
+      setHasVoted(false);
+      const link = pollLink(data.id);
+      setShareLink(link);
+      window.history.replaceState({}, "", `/?poll=${data.id}`);
+      setMessage("Poll created. Share the link below.");
+    } catch {
+      setMessage("Backend not reachable. Start API and try again.");
+    }
   };
 
-  const vote = (optionId: string) => {
+  const vote = async (optionId: string) => {
     if (!pollId || !poll) return;
 
-    const voted = readVoted();
-    const sessionVoted = readSessionVoted();
-    if (voted[pollId] || sessionVoted[pollId]) {
-      setMessage("You already voted on this poll from this device.");
-      return;
+    try {
+      const response = await fetch(`${API_BASE}/polls/${pollId}/vote`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ option_id: optionId }),
+      });
+
+      if (!response.ok) {
+        const err = (await response.json().catch(() => ({}))) as { detail?: string };
+        if (response.status === 409) {
+          setHasVoted(true);
+        }
+        setMessage(err.detail ?? "Vote failed.");
+        return;
+      }
+
+      const data = (await response.json()) as Poll;
+      setPoll(data);
+      setHasVoted(true);
+      setMessage("Vote submitted.");
+    } catch {
+      setMessage("Backend not reachable. Start API and try again.");
     }
-
-    const polls = readPolls();
-    const target = polls[pollId];
-    if (!target) {
-      setMessage("Poll not found.");
-      return;
-    }
-
-    target.options = target.options.map((option) =>
-      option.id === optionId ? { ...option, votes: option.votes + 1 } : option,
-    );
-    polls[pollId] = target;
-    writePolls(polls);
-
-    voted[pollId] = optionId;
-    writeVoted(voted);
-    sessionVoted[pollId] = optionId;
-    writeSessionVoted(sessionVoted);
-
-    const channel = new BroadcastChannel("poll-live-updates");
-    channel.postMessage({ type: "vote-added", pollId });
-    channel.close();
-
-    setPoll(target);
-    setMessage("Vote submitted.");
   };
 
   return (
@@ -205,16 +174,25 @@ export default function Home() {
           <div>
             <span>Options</span>
             {options.map((option, index) => (
-              <input
-                key={index}
-                value={option}
-                onChange={(e) => {
-                  const next = [...options];
-                  next[index] = e.target.value;
-                  setOptions(next);
-                }}
-                placeholder={`Option ${index + 1}`}
-              />
+              <div key={index} className="option-row">
+                <input
+                  value={option}
+                  onChange={(e) => {
+                    const next = [...options];
+                    next[index] = e.target.value;
+                    setOptions(next);
+                  }}
+                  placeholder={`Option ${index + 1}`}
+                />
+                <button
+                  type="button"
+                  className="secondary"
+                  disabled={options.length <= 2}
+                  onClick={() => setOptions((prev) => prev.filter((_, i) => i !== index))}
+                >
+                  Remove
+                </button>
+              </div>
             ))}
             <button
               type="button"
@@ -252,7 +230,7 @@ export default function Home() {
                 const percent = totalVotes === 0 ? 0 : Math.round((option.votes / totalVotes) * 100);
                 return (
                   <li key={option.id}>
-                    <button disabled={hasVoted} onClick={() => vote(option.id)}>
+                    <button type="button" disabled={hasVoted} onClick={() => void vote(option.id)}>
                       Vote
                     </button>
                     <span>{option.text}</span>

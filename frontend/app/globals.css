@@ -97,8 +97,18 @@ button:disabled {
   border-radius: 6px;
 }
 
+.option-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+}
+
 @media (max-width: 640px) {
   .poll li {
+    grid-template-columns: 1fr;
+  }
+
+  .option-row {
     grid-template-columns: 1fr;
   }
 }
