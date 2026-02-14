@@ -1,36 +1,31 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Simple Live Poll Frontend
 
-## Getting Started
+This is a basic frontend prototype for poll creation, sharing, voting, and live result updates.
 
-First, run the development server:
+## Run
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open `http://localhost:3000`.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## What It Supports
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- Create a poll with a question and 2+ options
+- Get a shareable link like `/?poll=<id>`
+- Open poll by link and vote once
+- See results update live across browser tabs
+- Persist polls/votes in browser storage
 
-## Learn More
+## Fairness Controls in This Frontend Prototype
 
-To learn more about Next.js, take a look at the following resources:
+- One vote per poll per browser (stored in localStorage)
+- One vote per poll per browser session (stored in sessionStorage)
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Limitations
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- Data is stored in browser localStorage (not server/database)
+- Live updates work across tabs on the same browser/device
+- Not secure against advanced abuse (e.g., clearing storage or changing browser/device)
