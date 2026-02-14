@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 
 type PollOption = {
@@ -25,6 +25,14 @@ function pollLink(pollId: string) {
 }
 
 export default function Home() {
+  return (
+    <Suspense fallback={<main className="page"><section className="card"><p>Loading...</p></section></main>}>
+      <PollPage />
+    </Suspense>
+  );
+}
+
+function PollPage() {
   const searchParams = useSearchParams();
   const pollIdFromUrl = searchParams.get("poll") ?? "";
 
